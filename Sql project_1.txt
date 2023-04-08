@@ -1,0 +1,283 @@
+show databases;
+create database air_cargo_analysis;
+
+#Create an ER diagram for the given airlines database.
+
+
+-- createing primery key customer_id
+ALTER TABLE `air_cargo_analysis`.`customer` 
+CHANGE COLUMN `customer_id` `customer_id` INT NOT NULL ,
+ADD PRIMARY KEY (`customer_id`);
+
+-- createing primery key route_id
+ALTER TABLE `air_cargo_analysis`.`routes` 
+CHANGE COLUMN `route_id` `route_id` INT NOT NULL ,
+ADD PRIMARY KEY (`route_id`);
+
+--  createing forigen key POF customer_id and POF route_id
+
+ALTER TABLE `air_cargo_analysis`.`passengers_on_flights` 
+ADD INDEX `FK_custID_POF_idx` (`customer_id` ASC) VISIBLE,
+ADD INDEX `FK_routID_POF_idx` (`route_id` ASC) VISIBLE;
+
+ALTER TABLE `air_cargo_analysis`.`passengers_on_flights` 
+ADD CONSTRAINT `FK_custID_POF`
+  FOREIGN KEY (`customer_id`)
+  REFERENCES `air_cargo_analysis`.`customer` (`customer_id`)
+  ON DELETE NO ACTION
+  ON UPDATE NO ACTION,
+ADD CONSTRAINT `FK_routID_POF`
+  FOREIGN KEY (`route_id`)
+  REFERENCES `air_cargo_analysis`.`routes` (`route_id`)
+  ON DELETE NO ACTION
+  ON UPDATE NO ACTION;
+  
+-- createing forigen key ticket, custmerID
+
+ALTER TABLE `air_cargo_analysis`.`ticket_details` 
+ADD INDEX `FK_custID_ticket_idx` (`customer_id` ASC) VISIBLE;
+ALTER TABLE `air_cargo_analysis`.`ticket_details` 
+ADD CONSTRAINT `FK_custID_ticket`
+  FOREIGN KEY (`customer_id`)
+  REFERENCES `air_cargo_analysis`.`customer` (`customer_id`)
+  ON DELETE NO ACTION
+  ON UPDATE NO ACTION;
+SELECT 
+    *
+FROM
+    air_cargo_analysis.passengers_on_flights;
+desc air_cargo_analysis.passengers_on_flights;
+
+/*Write a query to create route_details table using suitable data types for the fields,
+ such as route_id, flight_num, origin_airport, destination_airport, aircraft_id, and distance_miles.
+ Implement the check constraint for the flight number and unique constraint for the route_id fields.
+ Also, make sure that the distance miles field is greater than 0.*/
+ 
+ ALTER TABLE `air_cargo_analysis`.`routes` 
+CHANGE COLUMN `origin_airport` `origin_airport` VARCHAR(10) NULL DEFAULT NULL ,
+CHANGE COLUMN `destination_airport` `destination_airport` VARCHAR(10) NULL DEFAULT NULL ,
+CHANGE COLUMN `aircraft_id` `aircraft_id` VARCHAR(25) NULL DEFAULT NULL ,
+ RENAME TO  `air_cargo_analysis`.`route_details` ;
+ 
+SELECT 
+    *
+FROM
+    air_cargo_analysis.route_details
+WHERE
+    distance_miles < 1;
+
+/*Write a query to display all the passengers (customers) who have travelled in routes 01 to 25. 
+Take data  from the passengers_on_flights table*/
+
+SELECT 
+    *
+FROM
+    air_cargo_analysis.passengers_on_flights
+WHERE
+    route_id BETWEEN 1 AND 25
+ORDER BY route_id;
+ 
+ /*Write a query to identify the number of passengers and
+ total revenue in business class from the ticket_details table.*/
+ 
+SELECT 
+    COUNT(no_of_tickets)
+FROM
+    air_cargo_analysis.ticket_details
+WHERE
+    class_id LIKE '%Bussiness%';
+
+SELECT 
+    SUM(Price_per_ticket)
+FROM
+    air_cargo_analysis.ticket_details
+WHERE
+    class_id LIKE '%Bussiness%';
+
+/*Write a query to display the full name of the customer by extracting 
+the first name and last name from the customer table.*/
+SELECT 
+    CONCAT(first_name, ' ', last_name) AS customer_name
+FROM
+    air_cargo_analysis.customer;
+
+/*Write a query to extract the customers who have registered and booked a ticket.
+ Use data from the customer and ticket_details tables.*/
+ 
+SELECT 
+    COUNT(DISTINCT customer_id)
+FROM
+    air_cargo_analysis.ticket_details;
+SELECT DISTINCT
+    customer_id
+FROM
+    air_cargo_analysis.ticket_details;
+
+/*Write a query to identify the customer’s first name and last name based on their customer ID 
+and brand (Emirates) from the ticket_details table.*/
+SELECT 
+    air_cargo_analysis.customer.first_name,
+    air_cargo_analysis.customer.last_name,
+    air_cargo_analysis.ticket_details.brand
+FROM
+    air_cargo_analysis.ticket_details
+        INNER JOIN
+    air_cargo_analysis.customer ON air_cargo_analysis.customer.customer_id = air_cargo_analysis.ticket_details.customer_id
+
+/*Write a query to identify the customers who have travelled by Economy Plus class
+ using Group By and Having clause on the passengers_on_flights table.*/
+SELECT 
+    air_cargo_analysis.passengers_on_flights.customer_id,
+    air_cargo_analysis.passengers_on_flights.class_id
+FROM
+    air_cargo_analysis.passengers_on_flights
+GROUP BY customer_id
+HAVING class_id = 'Economy Plus'
+
+/*Write a query to identify whether the revenue has 
+crossed 10000 using the IF clause on the ticket_details table.*/
+SELECT 
+    IF(SUM(Price_per_ticket) > 10000,
+        'more then 10000',
+        'less then 10000')
+FROM
+    air_cargo_analysis.ticket_details
+
+/*Write a query to create and grant access to a new user to perform operations on a database.*/
+create user 'somu_tanti'@'localhost' identified by 'pass';
+grant all on air_cargo_analysis.ticket_details to 'somu_tanti'@'localhost';
+
+/*Write a query to find the maximum ticket price for each 
+class using window functions on the ticket_details table*/
+select * from(
+select class_id,Price_per_ticket,row_number()
+over (partition by class_id order by Price_per_ticket desc) as rn
+from air_cargo_analysis.ticket_details) as x
+where x.rn<2;
+ 
+ /*Write a query to extract the passengers whose route ID is 4 
+ by improving the speed and performance of the passengers_on_flights table.*/
+SELECT 
+    customer_id, route_id
+FROM
+    air_cargo_analysis.passengers_on_flights
+WHERE
+    route_id = 4
+
+/*Write a query to calculate the total price of all tickets booked by
+ a customer across different aircraft IDs using rollup function.*/
+SELECT 
+    aircraft_id, SUM(Price_per_ticket)
+FROM
+    air_cargo_analysis.ticket_details
+GROUP BY aircraft_id WITH ROLLUP
+
+/*Write a query to create a view with only business class customers
+ along with the brand of airlines.*/
+CREATE VIEW business_class_customers AS
+    SELECT 
+        customer_id, class_id, brand
+    FROM
+        air_cargo_analysis.ticket_details
+    WHERE
+        class_id = 'Bussiness'
+select * from business_class_customers;
+
+/*Write a query to create a stored procedure to get the details of all passengers flying
+ between a range of routes defined in run time. Also, 
+return an error message if the table doesn't exist.*/
+
+DELIMITER $$
+USE `air_cargo_analysis`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `passengers_routes`(in route_id int)
+BEGIN
+select customer_id,route_id,depart,arrival,travel_date
+from air_cargo_analysis.passengers_on_flights 
+where passengers_on_flights.route_id = route_id;
+if (route_id<1) or (route_id>50)then 
+signal sqlstate '45000'
+set message_text = 'NO route found!!';
+end if;
+END$$
+DELIMITER ;
+/*Write a query to create a stored procedure that extracts all the details from 
+the routes table where the travelled distance is more than 2000 miles*/
+
+DELIMITER $$
+USE `air_cargo_analysis`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `distance>2000`()
+BEGIN
+SELECT *
+FROM route_details
+GROUP BY distance_miles
+HAVING distance_miles> 2000; 
+END$$
+
+DELIMITER ;
+
+/*Write a query to create a stored procedure that groups the distance travelled by
+ each flight into three categories.
+ The categories are, short distance travel (SDT) for >=0 AND <= 2000 miles,
+ intermediate distance travel (IDT) for >2000 AND <=6500,
+ and long-distance travel (LDT) for >6500.*/
+ 
+DELIMITER $$
+USE `air_cargo_analysis`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `distance_Level`()
+BEGIN
+select *,
+case
+when distance_miles >=0 AND distance_miles<= 2000 THEN 'SDT'
+when distance_miles >2000 AND distance_miles <=6500 THEN 'IDT'
+when distance_miles >6500 THEN'LDT'
+end as distance_level
+from air_cargo_analysis.route_details;
+END$$
+
+DELIMITER ;
+/*Write a query to extract ticket purchase date, customer ID, 
+class ID and specify if the complimentary services are provided for the specific
+ class using a stored function in stored procedure on the ticket_details table.
+Condition:
+If the class is Business and Economy Plus,
+ then complimentary services are given as Yes, else it is No*/
+
+DELIMITER $$
+USE `air_cargo_analysis`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `complimentary_services`()
+BEGIN
+SELECT p_date,customer_id,class_id,
+case
+when class_id = 'Bussiness' then 'yes' 
+when class_id = 'Economy Plus' then 'Yes'
+else 'No'
+end as complimentary_services
+FROM air_cargo_analysis.ticket_details; 
+END$$
+
+DELIMITER ;
+
+/*Write a query to extract the first record of the customer whose
+ last name ends with Scott using a cursor from the customer table.*/
+
+DELIMITER $$
+USE `air_cargo_analysis`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `scott`()
+BEGIN
+DECLARE a VARCHAR (255) ; 
+DECLARE b VARCHAR (255) ;
+
+declare last_Scott cursor for 
+select first_name,last_name from customer
+where last_name = 'Scott';
+
+open last_Scott; 
+
+repeat fetch last_Scott into a,b;
+until b= 0 end repeat;
+SELECT a AS first_name, b AS last_name;
+close last_Scott;
+
+END$$
+
+DELIMITER ;
